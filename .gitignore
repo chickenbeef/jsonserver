@@ -19,7 +19,14 @@
 
 # Go workspace file
 go.work
-go.work.sum
 
-# env file
+# Kubernetes Generated files - skip generated files, except for vendored files
+!vendor/**/zz_generated.*
+
+# editor and IDE paraphernalia
+.idea
+.vscode
+*.swp
+*.swo
+*~
 .env
