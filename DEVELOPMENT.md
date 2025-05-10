@@ -1,8 +1,8 @@
-# JsonServer Operator Development Guide
+# 🛠️ JsonServer Operator Development Guide
 
 This file documents the steps performed to build a Kubernetes operator for managing [json-server](https://github.com/typicode/json-server) instances with CustomResourceDefinitions (CRDs), Admission Webhooks, and Controllers.
 
-## Prerequisites
+## 🔧 Prerequisites
 
 The following dependencies needed to be installed:
 
@@ -12,9 +12,9 @@ The following dependencies needed to be installed:
 - [kubebuilder](https://book.kubebuilder.io/) (+ [kubebuilder prerequisites](https://book.kubebuilder.io/quick-start.html#prerequisites))
 - [Go development environment](https://go.dev/doc/install)
 
-## Development Steps
+## 🚀 Development Steps
 
-### Create Kubebuilder Project
+### 📦 Create Kubebuilder Project
 
 Reference doc: <https://book.kubebuilder.io/quick-start#create-a-project>
 
@@ -30,7 +30,7 @@ kubebuilder create api --group example --version v1 --kind JsonServer
 make manifests
 ```
 
-### Implement Controller Reconciling Logic
+### ⚙️ Implement Controller Reconciling Logic
 
 Update generated `internal/controller/jsonserver_controller.go`:
 
@@ -50,7 +50,7 @@ Update generated `internal/controller/jsonserver_controller.go`:
       - Create/update Service to expose port 3000 (default port)
     - Update JsonServer CRD status
 
-### Implement Admission Webhook
+### 🔒 Implement Admission Webhook
 
 References:
 
@@ -66,7 +66,7 @@ kubebuilder create webhook --group example --version v1 --kind JsonServer --defa
 make manifests
 ```
 
-### Configure Webhooks
+### 🔧 Configure Webhooks
 
 References:
 
@@ -74,19 +74,19 @@ References:
 
 Created webhook [manifest](/config/webhook/manifests.yaml) and enabled cert-manager configuration.
 
-### Check manifests generated correctly
+### ✅ Check manifests generated correctly
 
 ```bash
 bin/kustomize build config/default
 ```
 
-### Bonus: Implement scale
+### 🌟 Bonus: Implement scale
 
 References:
 
 - [Scale subresource example](https://book.kubebuilder.io/reference/generating-crd.html#scale)
 
-### Bonus: Push to ttl.sh in CI
+### 🌟 Bonus: Push to ttl.sh in CI
 
 References:
 
