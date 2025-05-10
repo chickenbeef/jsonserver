@@ -5,7 +5,7 @@ metadata:
     app.kubernetes.io/name: jsonserver-operator
     app.kubernetes.io/managed-by: kustomize
   name: webhook-service
-  namespace: system
+  namespace: "$(SERVICE_NAMESPACE)"
 spec:
   ports:
     - port: 443

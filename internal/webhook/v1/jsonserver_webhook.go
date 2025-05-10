@@ -19,6 +19,7 @@ package v1
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -94,7 +95,10 @@ func (v *JsonServerCustomValidator) ValidateCreate(ctx context.Context, obj runt
 	}
 	jsonserverlog.Info("Validation for JsonServer upon creation", "name", jsonserver.GetName())
 
-	// TODO(user): fill in your validation logic upon object creation.
+	// Validating webhook to block creation of objects not following naming convention
+	if !strings.HasPrefix(jsonserver.GetName(), "app-") {
+		return nil, fmt.Errorf("JsonServer name must follow the convention 'app-${name}'")
+	}
 
 	return nil, nil
 }
@@ -107,7 +111,10 @@ func (v *JsonServerCustomValidator) ValidateUpdate(ctx context.Context, oldObj, 
 	}
 	jsonserverlog.Info("Validation for JsonServer upon update", "name", jsonserver.GetName())
 
-	// TODO(user): fill in your validation logic upon object update.
+	// Validating webhook to block update of objects not following naming convention
+	if !strings.HasPrefix(jsonserver.GetName(), "app-") {
+		return nil, fmt.Errorf("JsonServer name must follow the convention 'app-${name}'")
+	}
 
 	return nil, nil
 }
@@ -119,8 +126,6 @@ func (v *JsonServerCustomValidator) ValidateDelete(ctx context.Context, obj runt
 		return nil, fmt.Errorf("expected a JsonServer object but got %T", obj)
 	}
 	jsonserverlog.Info("Validation for JsonServer upon deletion", "name", jsonserver.GetName())
-
-	// TODO(user): fill in your validation logic upon object deletion.
 
 	return nil, nil
 }
