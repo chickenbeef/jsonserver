@@ -43,6 +43,7 @@ type JsonServerReconciler struct {
 // +kubebuilder:rbac:groups=example.example.com,resources=jsonservers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=example.example.com,resources=jsonservers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=example.example.com,resources=jsonservers/finalizers,verbs=update
+// +kubebuilder:rbac:groups=example.example.com,resources=jsonservers/scale,verbs=get;update;patch
 
 // RBAC to manage the custom resources (including delete so that it can cleanup the resources when the CRD is deleted)
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
@@ -132,10 +133,29 @@ func validateJSON(input string) error {
 func (r *JsonServerReconciler) updateStatus(ctx context.Context, jsonServer *examplev1.JsonServer, state, message string) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
-	// Update status if needed
-	if jsonServer.Status.State != state || jsonServer.Status.Message != message {
+	// Check if any status field needs updating
+	needsUpdate := jsonServer.Status.State != state ||
+		jsonServer.Status.Message != message ||
+		jsonServer.Status.Replicas != jsonServer.Spec.Replicas ||
+		jsonServer.Status.Selector == ""
+
+	if needsUpdate {
 		jsonServer.Status.State = state
 		jsonServer.Status.Message = message
+		// Make sure replicas and selector are set (if not already set during reconcileDeployment)
+		if jsonServer.Status.Replicas != jsonServer.Spec.Replicas {
+			jsonServer.Status.Replicas = jsonServer.Spec.Replicas
+		}
+		if jsonServer.Status.Selector == "" {
+			labels := getResourceLabels(jsonServer)
+			selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+				MatchLabels: labels,
+			})
+			if err == nil {
+				jsonServer.Status.Selector = selector.String()
+			}
+		}
+
 		if err := r.Status().Update(ctx, jsonServer); err != nil {
 			log.Error(err, "Failed to update JsonServer status")
 			return ctrl.Result{}, err
@@ -149,7 +169,6 @@ func (r *JsonServerReconciler) updateStatus(ctx context.Context, jsonServer *exa
 func (r *JsonServerReconciler) reconcileConfigMap(ctx context.Context, jsonServer *examplev1.JsonServer) (*corev1.ConfigMap, error) {
 	log := logf.FromContext(ctx)
 
-	// Define ConfigMap
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jsonServer.Name,
@@ -160,12 +179,11 @@ func (r *JsonServerReconciler) reconcileConfigMap(ctx context.Context, jsonServe
 
 	// Create or update ConfigMap
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, configMap, func() error {
-		// Set the owner reference
+
 		if err := controllerutil.SetControllerReference(jsonServer, configMap, r.Scheme); err != nil {
 			return err
 		}
 
-		// Set data
 		if configMap.Data == nil {
 			configMap.Data = make(map[string]string)
 		}
@@ -196,7 +214,7 @@ func (r *JsonServerReconciler) reconcileDeployment(ctx context.Context, jsonServ
 
 	// Create or update Deployment
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, deployment, func() error {
-		// Set the owner reference
+
 		if err := controllerutil.SetControllerReference(jsonServer, deployment, r.Scheme); err != nil {
 			return err
 		}
@@ -255,7 +273,20 @@ func (r *JsonServerReconciler) reconcileDeployment(ctx context.Context, jsonServ
 		return err
 	}
 
+	jsonServer.Status.Replicas = jsonServer.Spec.Replicas
+
+	labels := getResourceLabels(jsonServer)
+	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+		MatchLabels: labels,
+	})
+	if err != nil {
+		log.Error(err, "Failed to create selector from labels")
+		return err
+	}
+	jsonServer.Status.Selector = selector.String()
+
 	log.Info("Deployment reconciled", "operation", op)
+
 	return nil
 }
 

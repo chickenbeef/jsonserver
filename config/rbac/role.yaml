@@ -50,6 +50,7 @@ rules:
 - apiGroups:
   - example.example.com
   resources:
+  - jsonservers/scale
   - jsonservers/status
   verbs:
   - get

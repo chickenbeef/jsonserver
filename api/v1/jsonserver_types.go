@@ -40,10 +40,18 @@ type JsonServerStatus struct {
 
 	// Message provides additional information about the JsonServer state
 	Message string `json:"message,omitempty"`
+
+	// Replicas is the current number of replicas for this JsonServer
+	Replicas int32 `json:"replicas,omitempty"`
+
+	// Selector is the label selector for pods. This is used to find matching pods for scaling purposes.
+	// +optional
+	Selector string `json:"selector,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas,selectorpath=.status.selector
 
 // JsonServer is the Schema for the jsonservers API.
 type JsonServer struct {

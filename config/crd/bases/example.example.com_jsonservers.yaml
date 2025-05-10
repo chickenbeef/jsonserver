@@ -60,6 +60,14 @@ spec:
                 description: Message provides additional information about the JsonServer
                   state
                 type: string
+              replicas:
+                description: Replicas is the current number of replicas for this JsonServer
+                format: int32
+                type: integer
+              selector:
+                description: Selector is the label selector for pods. This is used
+                  to find matching pods for scaling purposes.
+                type: string
               state:
                 enum:
                 - Synced
@@ -70,4 +78,8 @@ spec:
     served: true
     storage: true
     subresources:
+      scale:
+        labelSelectorPath: .status.selector
+        specReplicasPath: .spec.replicas
+        statusReplicasPath: .status.replicas
       status: {}
