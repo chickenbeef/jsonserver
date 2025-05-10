@@ -247,12 +247,12 @@ For development steps see [DEVELOPMENT.md](DEVELOPMENT.md)
 
 ### 🔄 CI/CD with GitHub Actions (Bonus)
 
-This project includes a GitHub workflow that automatically builds, scans, and pushes the Docker image to [ttl.sh](https://ttl.sh/):
+This project includes a [GitHub workflow](https://github.com/chickenbeef/jsonserver/actions) that automatically builds, scans, and pushes the Docker image to [ttl.sh](https://ttl.sh/):
 
 - **Triggers**: Runs on pushes to the `main` branch and all pull requests
 - **Registry**: Uses ttl.sh as a free, ephemeral Docker registry (images expire after 24 hours)
 - **Tags**: Images are tagged as `ttl.sh/jsonserver-operator-{git-sha}:24h`
-- **Security Scanning**: Uses Trivy to scan for vulnerabilities in the container image
+- **Security Scanning**: [Uses Trivy to scan for vulnerabilities](https://github.com/chickenbeef/jsonserver/security) in the container image
 
 To use the CI-built images:
 
