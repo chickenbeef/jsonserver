@@ -9,10 +9,11 @@ namespace: jsonserver-operator-system
 namePrefix: jsonserver-operator-
 
 # Labels to add to all resources and selectors.
-#labels:
-#- includeSelectors: true
-#  pairs:
-#    someName: someValue
+labels:
+- includeSelectors: true
+  pairs:
+    app.kubernetes.io/name: jsonserver-operator
+    app.kubernetes.io/managed-by: kustomize
 
 resources:
 - ../crd

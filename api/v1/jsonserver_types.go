@@ -25,17 +25,21 @@ import (
 
 // JsonServerSpec defines the desired state of JsonServer.
 type JsonServerSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Replicas is the number of instances of the JsonServer to run
+	// +kubebuilder:validation:Minimum=1
+	Replicas int32 `json:"replicas"`
 
-	// Foo is an example field of JsonServer. Edit jsonserver_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// JsonConfig is the JSON configuration to be served by the JsonServer
+	JsonConfig string `json:"jsonConfig"`
 }
 
 // JsonServerStatus defines the observed state of JsonServer.
 type JsonServerStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// +kubebuilder:validation:Enum=Synced;Error
+	State string `json:"state,omitempty"`
+
+	// Message provides additional information about the JsonServer state
+	Message string `json:"message,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -51,6 +55,11 @@ type JsonServer struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Replicas",type="integer",JSONPath=".spec.replicas",description="Number of replicas"
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Current status"
+// +kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.message",description="Status message"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // JsonServerList contains a list of JsonServer.
 type JsonServerList struct {

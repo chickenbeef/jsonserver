@@ -1,0 +1,73 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: jsonservers.example.example.com
+spec:
+  group: example.example.com
+  names:
+    kind: JsonServer
+    listKind: JsonServerList
+    plural: jsonservers
+    singular: jsonserver
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: JsonServer is the Schema for the jsonservers API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: JsonServerSpec defines the desired state of JsonServer.
+            properties:
+              jsonConfig:
+                description: JsonConfig is the JSON configuration to be served by
+                  the JsonServer
+                type: string
+              replicas:
+                description: Replicas is the number of instances of the JsonServer
+                  to run
+                format: int32
+                minimum: 1
+                type: integer
+            required:
+            - jsonConfig
+            - replicas
+            type: object
+          status:
+            description: JsonServerStatus defines the observed state of JsonServer.
+            properties:
+              message:
+                description: Message provides additional information about the JsonServer
+                  state
+                type: string
+              state:
+                enum:
+                - Synced
+                - Error
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

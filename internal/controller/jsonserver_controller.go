@@ -20,10 +20,12 @@ import (
 	"context"
 	"encoding/json"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -85,6 +87,15 @@ func (r *JsonServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return r.updateStatus(ctx, jsonServer, "Error", "Error: unexpected failure")
 	}
 
+	// Deployment
+	if err := r.reconcileDeployment(ctx, jsonServer, configMap); err != nil {
+		return r.updateStatus(ctx, jsonServer, "Error", "Error: unexpected failure")
+	}
+
+	// Service
+	if err := r.reconcileService(ctx, jsonServer); err != nil {
+		return r.updateStatus(ctx, jsonServer, "Error", "Error: unexpected failure")
+	}
 
 	// Set Synced state
 	return r.updateStatus(ctx, jsonServer, "Synced", "Synced succesfully!")
@@ -94,6 +105,8 @@ func (r *JsonServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 func (r *JsonServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&examplev1.JsonServer{}).
+		Owns(&appsv1.Deployment{}).
+		Owns(&corev1.Service{}).
 		Owns(&corev1.ConfigMap{}).
 		Named("jsonserver").
 		Complete(r)
@@ -132,7 +145,7 @@ func (r *JsonServerReconciler) updateStatus(ctx context.Context, jsonServer *exa
 	return ctrl.Result{}, nil
 }
 
-// reconcileConfigMap ensures the ConfigMap exists and has the correct data
+// reconcileConfigMap ensures the ConfigMap exists
 func (r *JsonServerReconciler) reconcileConfigMap(ctx context.Context, jsonServer *examplev1.JsonServer) (*corev1.ConfigMap, error) {
 	log := logf.FromContext(ctx)
 
@@ -170,3 +183,117 @@ func (r *JsonServerReconciler) reconcileConfigMap(ctx context.Context, jsonServe
 	return configMap, nil
 }
 
+func (r *JsonServerReconciler) reconcileDeployment(ctx context.Context, jsonServer *examplev1.JsonServer, configMap *corev1.ConfigMap) error {
+	log := logf.FromContext(ctx)
+
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      jsonServer.Name,
+			Namespace: jsonServer.Namespace,
+			Labels:    getResourceLabels(jsonServer),
+		},
+	}
+
+	// Create or update Deployment
+	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, deployment, func() error {
+		// Set the owner reference
+		if err := controllerutil.SetControllerReference(jsonServer, deployment, r.Scheme); err != nil {
+			return err
+		}
+
+		labels := getResourceLabels(jsonServer)
+
+		deployment.Spec.Replicas = &jsonServer.Spec.Replicas
+		deployment.Spec.Selector = &metav1.LabelSelector{
+			MatchLabels: labels,
+		}
+		deployment.Spec.Template = corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: labels,
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  "json-server",
+						Image: "backplane/json-server",
+						Args:  []string{"/data/db.json"},
+						Ports: []corev1.ContainerPort{
+							{
+								ContainerPort: 3000,
+								Name:          "http",
+								Protocol:      corev1.ProtocolTCP,
+							},
+						},
+						VolumeMounts: []corev1.VolumeMount{
+							{
+								Name:      "json-config",
+								MountPath: "/data",
+							},
+						},
+					},
+				},
+				Volumes: []corev1.Volume{
+					{
+						Name: "json-config",
+						VolumeSource: corev1.VolumeSource{
+							ConfigMap: &corev1.ConfigMapVolumeSource{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: configMap.Name,
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		log.Error(err, "Failed to create or update Deployment")
+		return err
+	}
+
+	log.Info("Deployment reconciled", "operation", op)
+	return nil
+}
+
+func (r *JsonServerReconciler) reconcileService(ctx context.Context, jsonServer *examplev1.JsonServer) error {
+	log := logf.FromContext(ctx)
+
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      jsonServer.Name,
+			Namespace: jsonServer.Namespace,
+			Labels:    getResourceLabels(jsonServer),
+		},
+	}
+
+	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, service, func() error {
+		if err := controllerutil.SetControllerReference(jsonServer, service, r.Scheme); err != nil {
+			return err
+		}
+
+		labels := getResourceLabels(jsonServer)
+
+		service.Spec.Selector = labels
+		service.Spec.Ports = []corev1.ServicePort{
+			{
+				Port:       3000,
+				TargetPort: intstr.FromInt(3000),
+				Protocol:   corev1.ProtocolTCP,
+			},
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		log.Error(err, "Failed to create or update Service")
+		return err
+	}
+
+	log.Info("Service reconciled", "operation", op)
+	return nil
+}
