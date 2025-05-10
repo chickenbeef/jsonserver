@@ -20,10 +20,13 @@ import (
 	"context"
 	"encoding/json"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	examplev1 "jsonserver-operator/api/v1"
@@ -75,6 +78,14 @@ func (r *JsonServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return r.updateStatus(ctx, jsonServer, "Error", "Error: spec.jsonConfig is not a valid json object")
 	}
 
+	// Create resources
+	// ConfigMap for JSON data
+	configMap, err := r.reconcileConfigMap(ctx, jsonServer)
+	if err != nil {
+		return r.updateStatus(ctx, jsonServer, "Error", "Error: unexpected failure")
+	}
+
+
 	// Set Synced state
 	return r.updateStatus(ctx, jsonServer, "Synced", "Synced succesfully!")
 }
@@ -83,11 +94,20 @@ func (r *JsonServerReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 func (r *JsonServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&examplev1.JsonServer{}).
+		Owns(&corev1.ConfigMap{}).
 		Named("jsonserver").
 		Complete(r)
 }
 
 // Helper functions
+
+// getResourceLabels returns the labels to be applied to resources owned by the JsonServer
+func getResourceLabels(jsonServer *examplev1.JsonServer) map[string]string {
+	return map[string]string{
+		"app":        jsonServer.Name,
+		"managed-by": "jsonserver-operator",
+	}
+}
 
 // validateJSON checks if the input string is a valid JSON
 func validateJSON(input string) error {
@@ -110,5 +130,43 @@ func (r *JsonServerReconciler) updateStatus(ctx context.Context, jsonServer *exa
 	}
 
 	return ctrl.Result{}, nil
+}
+
+// reconcileConfigMap ensures the ConfigMap exists and has the correct data
+func (r *JsonServerReconciler) reconcileConfigMap(ctx context.Context, jsonServer *examplev1.JsonServer) (*corev1.ConfigMap, error) {
+	log := logf.FromContext(ctx)
+
+	// Define ConfigMap
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      jsonServer.Name,
+			Namespace: jsonServer.Namespace,
+			Labels:    getResourceLabels(jsonServer),
+		},
+	}
+
+	// Create or update ConfigMap
+	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, configMap, func() error {
+		// Set the owner reference
+		if err := controllerutil.SetControllerReference(jsonServer, configMap, r.Scheme); err != nil {
+			return err
+		}
+
+		// Set data
+		if configMap.Data == nil {
+			configMap.Data = make(map[string]string)
+		}
+		configMap.Data["db.json"] = jsonServer.Spec.JsonConfig
+
+		return nil
+	})
+
+	if err != nil {
+		log.Error(err, "Failed to create or update ConfigMap")
+		return nil, err
+	}
+
+	log.Info("ConfigMap reconciled", "operation", op)
+	return configMap, nil
 }
 
