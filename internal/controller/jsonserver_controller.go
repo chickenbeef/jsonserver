@@ -37,6 +37,11 @@ type JsonServerReconciler struct {
 // +kubebuilder:rbac:groups=example.example.com,resources=jsonservers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=example.example.com,resources=jsonservers/finalizers,verbs=update
 
+// RBAC to manage the custom resources (including delete so that it can cleanup the resources when the CRD is deleted)
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
+
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
