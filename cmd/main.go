@@ -39,6 +39,7 @@ import (
 
 	examplev1 "jsonserver-operator/api/v1"
 	"jsonserver-operator/internal/controller"
+	webhookexamplev1 "jsonserver-operator/internal/webhook/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -208,6 +209,13 @@ func main() {
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "JsonServer")
 		os.Exit(1)
+	}
+	// nolint:goconst
+	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+		if err = webhookexamplev1.SetupJsonServerWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "JsonServer")
+			os.Exit(1)
+		}
 	}
 	// +kubebuilder:scaffold:builder
 
